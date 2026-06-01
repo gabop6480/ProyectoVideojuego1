@@ -1,0 +1,7 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:VisualElement name="PanelVictoria" style="flex-grow: 1; aspect-ratio: 1.777778; background-color: rgba(14, 12, 12, 0.92);">
+        <ui:Label text="UMBRA"/>
+        <ui:Button text="Button"/>
+        <ui:Button text="Button" style="left: 0; bottom: 0; align-self: auto; justify-content: flex-start; align-content: auto; align-items: auto;"/>
+    </ui:VisualElement>
+</ui:UXML>

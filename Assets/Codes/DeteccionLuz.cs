@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Cinemachine;
 
 public class DeteccionLuz : MonoBehaviour
 {
@@ -11,23 +12,66 @@ public class DeteccionLuz : MonoBehaviour
     [Tooltip("Selecciona las capas que representan muros o suelos que bloquean la luz")]
     public LayerMask capasQueBloqueanLuz;
 
+    [Header("Juiciness & Feedback (Efectos)")]
+    [Tooltip("Arrastra aquí el Particle System de humo/ceniza colocado en la escena")]
+    public ParticleSystem particulasQuemadura;
+
+    [Tooltip("Arrastra aquí el objeto 'GeneradorDeTemblores' que tiene el Cinemachine Impulse Source")]
+    public CinemachineImpulseSource fuenteImpulso;
+
     private float temporizador = 0f;
     private bool estaDentroDelArea = false;
     private Transform transformJugador;
+
+    void Start()
+    {
+        // Sistema de desfase aleatorio para las animaciones de giro
+        Animator anim = GetComponent<Animator>();
+        if (anim != null)
+        {
+            float desfaseAleatorio = Random.Range(0f, 1f);
+            anim.Play("LightMove", 0, desfaseAleatorio);
+        }
+
+        if (particulasQuemadura != null)
+        {
+            particulasQuemadura.Stop();
+        }
+    }
 
     void Update()
     {
         if (estaDentroDelArea && transformJugador != null)
         {
+            // Verificamos si está REALMENTE expuesto (sin muros de por medio)
             if (EstaRealmenteExpuesto())
             {
                 temporizador += Time.deltaTime;
+                float porcentajeQuemadura = temporizador / tiempoMaximoBajoLuz;
 
-                // Efecto visual opcional: Umbra se vuelve más rojo mientras se quema
+                // --- EFECTO 1: FEEDBACK VISUAL (Solo color y parpadeo rápido) ---
                 SpriteRenderer sr = transformJugador.GetComponent<SpriteRenderer>();
                 if (sr != null)
                 {
-                    sr.color = Color.Lerp(Color.white, Color.red, temporizador / tiempoMaximoBajoLuz);
+                    float parpadeo = Mathf.Sin(Time.time * 40f) > 0 ? 1f : 0.3f;
+                    sr.color = Color.Lerp(Color.white, Color.red, porcentajeQuemadura) * parpadeo;
+                }
+
+                // --- EFECTO 2: SISTEMA DE PARTÍCULAS ---
+                if (particulasQuemadura != null)
+                {
+                    particulasQuemadura.transform.position = transformJugador.position;
+                    if (!particulasQuemadura.isPlaying)
+                    {
+                        particulasQuemadura.Play();
+                    }
+                }
+
+                // --- EFECTO 3: CINEMACHINE CAMERA SHAKE ---
+                if (fuenteImpulso != null)
+                {
+                    // Error tipográfico corregido de la versión anterior: fuenceImpulso -> fuenteImpulso
+                    fuenteImpulso.GenerateImpulseWithVelocity(Random.insideUnitCircle * porcentajeQuemadura * 0.05f);
                 }
 
                 if (temporizador >= tiempoMaximoBajoLuz)
@@ -37,16 +81,12 @@ public class DeteccionLuz : MonoBehaviour
             }
             else
             {
+                // Si se esconde detrás de un muro, los efectos se limpian inmediatamente
                 ResetearEstado();
             }
         }
-        else
-        {
-            ResetearEstado();
-        }
     }
 
-    // Verifica si hay un muro entre la lámpara y el jugador
     bool EstaRealmenteExpuesto()
     {
         Vector2 origenLuz = transform.position;
@@ -54,10 +94,7 @@ public class DeteccionLuz : MonoBehaviour
         Vector2 direccion = (posicionJugador - origenLuz).normalized;
         float distancia = Vector2.Distance(origenLuz, posicionJugador);
 
-        // Lanzamos un rayo invisible (Raycast)
         RaycastHit2D hit = Physics2D.Raycast(origenLuz, direccion, distancia, capasQueBloqueanLuz);
-
-        // Si el rayo NO golpea nada, el camino está despejado -> Umbra está expuesto
         return hit.collider == null;
     }
 
@@ -82,16 +119,33 @@ public class DeteccionLuz : MonoBehaviour
     void ResetearEstado()
     {
         temporizador = 0f;
+
         if (transformJugador != null)
         {
             SpriteRenderer sr = transformJugador.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.color = Color.white; // Vuelve a su color normal
+            if (sr != null)
+            {
+                sr.color = Color.white; // Restaura su color normal
+            }
         }
+
+        if (particulasQuemadura != null) particulasQuemadura.Stop();
     }
 
     void ReiniciarNivel()
     {
         Debug.Log("¡Umbra se ha disuelto en la luz!");
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        ResetearEstado();
+
+        /*ControladorUIJuego uiJuego = Object.FindFirstObjectByType<ControladorUIJuego>();
+        if (uiJuego != null)
+        {
+            uiJuego.MostrarDerrota();
+        }
+        else
+        {*/
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        //}
     }
 }
